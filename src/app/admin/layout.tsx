@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
+import Link from 'next/link';
 
 export default function AdminLayout({
   children,
@@ -10,6 +11,8 @@ export default function AdminLayout({
 }) {
   const { isAuthenticated, login } = useAuth();
   const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   if (isAuthenticated === null) return <div>Loading...</div>;
 
@@ -24,16 +27,29 @@ export default function AdminLayout({
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && !isLoggingIn && handleLogin()}
           />
+          {loginError && <p className="text-red-500 text-sm mb-4">{loginError}</p>}
           <button
-            onClick={() => login(password)}
-            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+            onClick={handleLogin}
+            disabled={isLoggingIn}
+            className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:opacity-50"
           >
-            Login
+            {isLoggingIn ? 'Logging in...' : 'Login'}
           </button>
         </div>
       </div>
     );
+  }
+
+  async function handleLogin() {
+    setIsLoggingIn(true);
+    setLoginError('');
+    const success = await login(password);
+    if (!success) {
+      setLoginError('Invalid password');
+    }
+    setIsLoggingIn(false);
   }
 
   return (
@@ -44,13 +60,13 @@ export default function AdminLayout({
         </div>
         <ul className="mt-4">
           <li>
-            <a href="/admin/settings" className="block p-4 hover:bg-gray-200">Settings</a>
+            <Link href="/admin/settings" className="block p-4 hover:bg-gray-200">Settings</Link>
           </li>
           <li>
-            <a href="/admin/analytics" className="block p-4 hover:bg-gray-200">Analytics</a>
+            <Link href="/admin/analytics" className="block p-4 hover:bg-gray-200">Analytics</Link>
           </li>
           <li>
-            <a href="/" className="block p-4 hover:bg-gray-200">Back to Chat</a>
+            <Link href="/" className="block p-4 hover:bg-gray-200">Back to Chat</Link>
           </li>
         </ul>
       </nav>

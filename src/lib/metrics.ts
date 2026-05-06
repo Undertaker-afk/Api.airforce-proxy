@@ -1,11 +1,11 @@
 import redis from './redis';
 
-export async function incrementMetric(key: string, field: 'success' | 'failure' | 'tokens') {
+export async function incrementMetric(key: string, field: 'success' | 'failure' | 'tokens', amount: number = 1) {
   const dateKey = `metrics:${new Date().toISOString().split('T')[0]}`;
   const fullKey = `${dateKey}:${key}`;
 
-  await redis.hincrby(fullKey, field, 1);
-  await redis.expire(dateKey, 48 * 60 * 60); // 48 hours
+  await redis.hincrby(fullKey, field, amount);
+  await redis.expire(fullKey, 48 * 60 * 60); // 48 hours
 }
 
 export async function getQueueLength(): Promise<number> {

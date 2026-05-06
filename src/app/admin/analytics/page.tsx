@@ -1,25 +1,53 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
+
+interface KeyMetric {
+  isRateLimited: boolean;
+  today: { success: number; failure: number; tokens: number };
+  yesterday: { success: number; failure: number; tokens: number };
+}
+
+interface AnalyticsResponse {
+  queueLength: number;
+  metrics: Record<string, KeyMetric>;
+}
 
 export default function AnalyticsPage() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<AnalyticsResponse | null>(null);
+  const [config, setConfig] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { getAdminToken } = useAuth();
 
   useEffect(() => {
-    const fetchData = () => {
-      fetch('/api/admin/analytics').then(res => res.json()).then(setData);
+    const fetchData = async () => {
+      try {
+        const res = await fetch('/api/admin/analytics', {
+          headers: { 'Authorization': `Bearer ${getAdminToken()}` }
+        });
+        if (!res.ok) throw new Error(`Analytics fetch failed: ${res.status}`);
+        const json = await res.json();
+        setData(json);
+        setError(null);
+      } catch (err: any) {
+        setError(err.message);
+      }
     };
+
     fetchData();
     const interval = setInterval(fetchData, 5000);
+
+    fetch('/api/admin/config', {
+      headers: { 'Authorization': `Bearer ${getAdminToken()}` }
+    })
+      .then(res => res.ok ? res.json() : null)
+      .then(setConfig);
+
     return () => clearInterval(interval);
-  }, []);
+  }, [getAdminToken]);
 
-  const [config, setConfig] = useState<any>(null);
-
-  useEffect(() => {
-    fetch('/api/admin/config').then(res => res.json()).then(setConfig);
-  }, []);
-
+  if (error) return <div className="text-red-500 p-4">Error: {error}</div>;
   if (!data) return <div>Loading...</div>;
 
   return (
@@ -54,7 +82,7 @@ export default function AnalyticsPage() {
             </tr>
           </thead>
           <tbody>
-            {Object.entries(data.metrics).map(([key, metrics]: [string, any]) => (
+            {Object.entries(data.metrics).map(([key, metrics]) => (
               <tr key={key} className="border-b">
                 <td className="p-4 font-mono">{key.slice(0, 8)}...</td>
                 <td className="p-4">
@@ -65,10 +93,10 @@ export default function AnalyticsPage() {
                   )}
                 </td>
                 <td className="p-4">
-                  {metrics.today.success} / {metrics.today.failure} / {metrics.today.tokens || 0}
+                  {metrics.today.success} / {metrics.today.failure} / {metrics.today.tokens}
                 </td>
                 <td className="p-4">
-                  {metrics.yesterday.success} / {metrics.yesterday.failure} / {metrics.yesterday.tokens || 0}
+                  {metrics.yesterday.success} / {metrics.yesterday.failure} / {metrics.yesterday.tokens}
                 </td>
               </tr>
             ))}

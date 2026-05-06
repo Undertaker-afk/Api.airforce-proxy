@@ -10,25 +10,31 @@ export function useAuth() {
     setIsAuthenticated(!!auth);
   }, []);
 
+  const getAdminToken = () => {
+    return localStorage.getItem('admin_password') || '';
+  };
+
   const login = (password: string) => {
-    // We'll call an API to verify the password
     return fetch('/api/admin/auth', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
     }).then(res => {
       if (res.ok) {
         localStorage.setItem('admin_auth', 'true');
+        localStorage.setItem('admin_password', password);
         setIsAuthenticated(true);
         return true;
       }
       return false;
-    });
+    }).catch(() => false);
   };
 
   const logout = () => {
     localStorage.removeItem('admin_auth');
+    localStorage.removeItem('admin_password');
     setIsAuthenticated(false);
   };
 
-  return { isAuthenticated, login, logout };
+  return { isAuthenticated, login, logout, getAdminToken };
 }

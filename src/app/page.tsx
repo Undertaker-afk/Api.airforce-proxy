@@ -1,20 +1,26 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import Link from 'next/link';
 
 interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
 
+interface ModelOption {
+  id: string;
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [models, setModels] = useState<any[]>([]);
+  const [models, setModels] = useState<ModelOption[]>([]);
   const [selectedModel, setSelectedModel] = useState('gpt-4.1-mini');
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -25,7 +31,7 @@ export default function ChatPage() {
     }
     setSessionId(sid);
 
-    fetch(`/api/chat/history?sessionId=${sid}`).then(res => res.json()).then(setMessages);
+    fetch(`/api/chat/history?sessionId=${sid}`).then(res => res.ok ? res.json() : []).then(setMessages);
     fetch('/api/models').then(res => res.json()).then(data => {
       if (data.data) setModels(data.data);
     });
@@ -33,21 +39,27 @@ export default function ChatPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    if (sessionId && messages.length > 0) {
-      fetch('/api/chat/history', {
+  }, [messages]);
+
+  const saveHistory = useCallback(async (msgs: Message[]) => {
+    if (sessionId && msgs.length > 0) {
+      await fetch('/api/chat/history', {
         method: 'POST',
-        body: JSON.stringify({ sessionId, messages }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, messages: msgs }),
       });
     }
-  }, [messages, sessionId]);
+  }, [sessionId]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const newMessages: Message[] = [...messages, { role: 'user', content: input }];
+    const userMessage: Message = { role: 'user', content: input };
+    const newMessages: Message[] = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
     setLoading(true);
+    setIsStreaming(true);
 
     try {
       const response = await fetch('/v1/chat/completions', {
@@ -60,11 +72,17 @@ export default function ChatPage() {
         }),
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `API Error: ${response.status}`);
+      }
+
       if (!response.body) throw new Error('No body');
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let assistantMessage = '';
+      let partialLine = '';
 
       setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
 
@@ -72,13 +90,17 @@ export default function ChatPage() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n');
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = (partialLine + chunk).split('\n');
+        partialLine = lines.pop() || '';
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') continue;
+
             try {
-              const data = JSON.parse(line.slice(6));
+              const data = JSON.parse(dataStr);
               if (data.choices?.[0]?.delta?.content) {
                 assistantMessage += data.choices[0].delta.content;
                 setMessages(prev => {
@@ -87,23 +109,31 @@ export default function ChatPage() {
                   return updated;
                 });
               } else if (data.error) {
-                 assistantMessage += `\nError: ${data.error}`;
-                 setMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1].content = assistantMessage;
-                  return updated;
-                });
+                assistantMessage += `\nError: ${data.error}`;
+                setMessages(prev => {
+                   const updated = [...prev];
+                   updated[updated.length - 1].content = assistantMessage;
+                   return updated;
+                 });
               }
             } catch (e) {
-              // Ignore parse errors for [DONE] etc
+              console.error("Error parsing SSE chunk:", e, dataStr);
             }
           }
         }
       }
-    } catch (err: any) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
+
+      const finalMessages: Message[] = [...newMessages, { role: 'assistant', content: assistantMessage }];
+      await saveHistory(finalMessages);
+
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      const errorMessages: Message[] = [...newMessages, { role: 'assistant', content: `Error: ${message}` }];
+      setMessages(errorMessages);
+      await saveHistory(errorMessages);
     } finally {
       setLoading(false);
+      setIsStreaming(false);
     }
   };
 
@@ -123,7 +153,7 @@ export default function ChatPage() {
               <option value="gpt-4.1-mini">gpt-4.1-mini</option>
             )}
           </select>
-          <a href="/admin/analytics" className="text-blue-500 p-2">Admin</a>
+          <Link href="/admin/analytics" className="text-blue-500 p-2">Admin</Link>
         </div>
       </header>
 

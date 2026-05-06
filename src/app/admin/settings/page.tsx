@@ -1,41 +1,68 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/hooks/useAuth';
 
 export default function SettingsPage() {
   const [keys, setKeys] = useState<string[]>([]);
   const [newKey, setNewKey] = useState('');
   const [maxQueueSize, setMaxQueueSize] = useState(10);
+  const { getAdminToken } = useAuth();
 
   useEffect(() => {
-    fetch('/api/admin/keys').then(res => res.json()).then(setKeys);
-    fetch('/api/admin/settings').then(res => res.json()).then(data => setMaxQueueSize(data.maxQueueSize));
-  }, []);
+    const headers = { 'Authorization': `Bearer ${getAdminToken()}` };
+    fetch('/api/admin/keys', { headers }).then(res => res.ok ? res.json() : []).then(setKeys);
+    fetch('/api/admin/settings', { headers }).then(res => res.ok ? res.json() : { maxQueueSize: 10 }).then(data => setMaxQueueSize(data.maxQueueSize));
+  }, [getAdminToken]);
 
   const addKey = async () => {
     if (!newKey) return;
-    await fetch('/api/admin/keys', {
+    const res = await fetch('/api/admin/keys', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAdminToken()}`
+      },
       body: JSON.stringify({ key: newKey }),
     });
-    setKeys([...keys, newKey]);
-    setNewKey('');
+    if (res.ok) {
+      setKeys([...keys, newKey]);
+      setNewKey('');
+    } else {
+      const err = await res.json();
+      alert(`Failed to add key: ${err.error || res.statusText}`);
+    }
   };
 
   const removeKey = async (key: string) => {
-    await fetch('/api/admin/keys', {
+    const res = await fetch('/api/admin/keys', {
       method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAdminToken()}`
+      },
       body: JSON.stringify({ key }),
     });
-    setKeys(keys.filter(k => k !== key));
+    if (res.ok) {
+      setKeys(keys.filter(k => k !== key));
+    }
   };
 
   const saveSettings = async () => {
-    await fetch('/api/admin/settings', {
+    const res = await fetch('/api/admin/settings', {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAdminToken()}`
+      },
       body: JSON.stringify({ maxQueueSize }),
     });
-    alert('Settings saved');
+    if (res.ok) {
+      alert('Settings saved');
+    } else {
+      const err = await res.json();
+      alert(`Failed to save settings: ${err.error || res.statusText}`);
+    }
   };
 
   return (
@@ -71,8 +98,13 @@ export default function SettingsPage() {
           <input
             type="number"
             className="p-2 border rounded w-32 mb-4"
-            value={maxQueueSize}
-            onChange={(e) => setMaxQueueSize(parseInt(e.target.value))}
+            value={maxQueueSize || ''}
+            min={1}
+            max={100}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              setMaxQueueSize(isNaN(val) ? 0 : val);
+            }}
           />
           <button onClick={saveSettings} className="block bg-blue-500 text-white px-4 py-2 rounded">Save Settings</button>
         </div>
