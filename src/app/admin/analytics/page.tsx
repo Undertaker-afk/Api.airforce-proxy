@@ -1,0 +1,65 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+
+export default function AnalyticsPage() {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = () => {
+      fetch('/api/admin/analytics').then(res => res.json()).then(setData);
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!data) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h1 className="text-3xl font-bold mb-8">Analytics</h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="bg-white p-6 rounded shadow">
+          <h3 className="text-gray-500 uppercase text-sm font-bold">Current Queue</h3>
+          <p className="text-4xl font-bold">{data.queueLength}</p>
+        </div>
+      </div>
+
+      <h2 className="text-xl font-semibold mb-4">Key Metrics</h2>
+      <div className="overflow-x-auto">
+        <table className="w-full bg-white rounded shadow">
+          <thead>
+            <tr className="bg-gray-50 border-b">
+              <th className="p-4 text-left">Key (partial)</th>
+              <th className="p-4 text-left">Status</th>
+              <th className="p-4 text-left">Today (S/F/T)</th>
+              <th className="p-4 text-left">Yesterday (S/F/T)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(data.metrics).map(([key, metrics]: [string, any]) => (
+              <tr key={key} className="border-b">
+                <td className="p-4 font-mono">{key.slice(0, 8)}...</td>
+                <td className="p-4">
+                  {metrics.isRateLimited ? (
+                    <span className="text-orange-500">Rate Limited</span>
+                  ) : (
+                    <span className="text-green-500">Ready</span>
+                  )}
+                </td>
+                <td className="p-4">
+                  {metrics.today.success} / {metrics.today.failure} / {metrics.today.tokens || 0}
+                </td>
+                <td className="p-4">
+                  {metrics.yesterday.success} / {metrics.yesterday.failure} / {metrics.yesterday.tokens || 0}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
