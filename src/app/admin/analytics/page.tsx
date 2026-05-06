@@ -14,11 +14,26 @@ export default function AnalyticsPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const [config, setConfig] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/config').then(res => res.json()).then(setConfig);
+  }, []);
+
   if (!data) return <div>Loading...</div>;
 
   return (
     <div>
       <h1 className="text-3xl font-bold mb-8">Analytics</h1>
+
+      {config && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8">
+          <p className="text-blue-700">
+            <strong>Public API Endpoint:</strong> <code className="bg-blue-100 px-1 rounded">{config.appEndpoint}/v1/chat/completions</code>
+          </p>
+          <p className="text-sm text-blue-600 mt-1">Use this URL in your OpenAI-compatible clients.</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="bg-white p-6 rounded shadow">

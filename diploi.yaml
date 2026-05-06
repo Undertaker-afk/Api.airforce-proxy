@@ -3,10 +3,16 @@ components:
   - name: "Next.js"
     identifier: "next"
     package: "https://github.com/diploi/component-nextjs#main"
+    env:
+      include:
+        - "*"
   - name: "Bun"
     identifier: "bun"
     package: "https://github.com/diploi/component-bun#main"
+    env:
+      include:
+        - "*"
 addons:
   - name: "Redis"
     identifier: "redis"
-    package: "https://github.com/diploi/addon-redis#main
+    package: "https://github.com/diploi/addon-redis#main"
