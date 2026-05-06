@@ -1,0 +1,12 @@
+diploiVersion: "v1.0"
+components:
+  - name: "Next.js"
+    identifier: "next"
+    package: "https://github.com/diploi/component-nextjs#main"
+  - name: "Bun"
+    identifier: "bun"
+    package: "https://github.com/diploi/component-bun#main"
+addons:
+  - name: "Redis"
+    identifier: "redis"
+    package: "https://github.com/diploi/addon-redis#main
