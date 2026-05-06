@@ -1,0 +1,49 @@
+Build an ai chat based on this api 
+POST https://api.airforce/v1/chat/completions 200
+
+Request Data
+
+{"model":"claude-sonnet-4.6","messages":[{"role":"user","content":"Hi"},{"role":"assistant","content":" Hi! How can I help you today?"},{"role":"user","content":"Can you code?"},{"role":"user","content":"Can you code?"},{"role":"user","content":"Can you code?"}],"temperature":0.7,"stream":true}
+
+Request Headers
+
+Content-Type: application/json
+
+Response Headers
+
+cache-control: no-cache
+content-type: text/event-stream; charset=utf-8
+
+data: {"choices":[{"delta":{"content":" It","role":"assistant"},"finish_reason":null,"index":0}],"created":1778060139,"id":"chatcmpl-7915cf37135646fa87e54a2ae1e56","model":"claude-sonnet-4.6","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"content":" looks like you uploaded a text file containing a short conversation snippet. Yes, I can definitely"},"finish_reason":null,"index":0}],"created":1778060139,"id":"chatcmpl-7915cf37135646fa87e54a2ae1e56","model":"claude-sonnet-4.6","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"content":" code! I work with a wide range of languages including Python, JavaScript, TypeScript,"},"finish_reason":null,"index":0}],"created":1778060139,"id":"chatcmpl-7915cf37135646fa87e54a2ae1e56","model":"claude-sonnet-4.6","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"content":" HTML/CSS, SQL, Rust, Go, and many more.\n\nWhat would you like to"},"finish_reason":null,"index":0}],"created":1778060139,"id":"chatcmpl-7915cf37135646fa87e54a2ae1e56","model":"claude-sonnet-4.6","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{"content":" build or work on?"},"finish_reason":null,"index":0}],"created":1778060139,"id":"chatcmpl-7915cf37135646fa87e54a2ae1e56","model":"claude-sonnet-4.6","object":"chat.completion.chunk"}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop","index":0}],"created":1778060139,"id":"chatcmpl-7915cf37135646fa87e54a2ae1e56","model":"claude-sonnet-4.6","object":"chat.completion.chunk"}
+
+data: {"choices":[],"created":1778060139,"id":"chatcmpl-7915cf37135646fa87e54a2ae1e56","model":"claude-sonnet-4.6","object":"chat.completion.chunk","usage":{"completion_tokens":67,"prompt_tokens":17,"total_tokens":84}}
+
+data: [DONE]
+
+And this:
+POST https://api.airforce/v1/chat/completions 429
+
+Request Data
+
+{"model":"claude-sonnet-4.6","messages":[{"role":"user","content":"Hi"},{"role":"assistant","content":" Hi! How can I help you today?"},{"role":"user","content":"Can you code?"}],"temperature":0.7,"stream":true}
+
+Request Headers
+
+Content-Type: application/json
+
+Response Headers
+
+content-type: application/json
+
+{"error":{"message":"Global rate limit exceeded (1 requests per second). Try again in 0.9 seconds. Your next guaranteed response is in 29 seconds. Or upgrade at api.airforce - discord.gg/airforce","type":"rate_limit_exceeded","param":null,"code":"429"}}
+
