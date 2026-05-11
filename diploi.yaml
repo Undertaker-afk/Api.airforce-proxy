@@ -2,11 +2,25 @@ diploiVersion: "v1.0"
 components:
   - name: "Next.js"
     identifier: "next"
+    folder: "web"
     package: "https://github.com/diploi/component-nextjs#main"
-  - name: "Bun"
-    identifier: "bun"
+    env:
+      include:
+        - "APP_ENDPOINT"
+        - "NODE_ENV"
+  - name: "API"
+    identifier: "api"
+    folder: "api"
     package: "https://github.com/diploi/component-bun#main"
+    env:
+      include:
+        - "*"
+    hosts:
+      - identifier: "api"
+        name: "API Internal"
+        port: 3000
+        endpoint: false
 addons:
   - name: "Redis"
     identifier: "redis"
-    package: "https://github.com/diploi/addon-redis#main
+    package: "https://github.com/diploi/addon-redis#main"
