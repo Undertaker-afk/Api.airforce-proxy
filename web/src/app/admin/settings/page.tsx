@@ -10,58 +10,81 @@ export default function SettingsPage() {
   const { getAdminToken } = useAuth();
 
   useEffect(() => {
-    const headers = { 'Authorization': `Bearer ${getAdminToken()}` };
-    fetch('/api/admin/keys', { headers }).then(res => res.ok ? res.json() : []).then(setKeys);
-    fetch('/api/admin/settings', { headers }).then(res => res.ok ? res.json() : { maxQueueSize: 10 }).then(data => setMaxQueueSize(data.maxQueueSize));
+    const token = getAdminToken();
+    if (!token) return;
+
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    fetch('/api/admin/keys', { headers })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setKeys(Array.isArray(data) ? data : []))
+      .catch(() => setKeys([]));
+
+    fetch('/api/admin/settings', { headers })
+      .then(res => res.ok ? res.json() : { maxQueueSize: 10 })
+      .then(data => setMaxQueueSize(data.maxQueueSize || 10))
+      .catch(() => setMaxQueueSize(10));
   }, [getAdminToken]);
 
   const addKey = async () => {
     if (!newKey) return;
-    const res = await fetch('/api/admin/keys', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAdminToken()}`
-      },
-      body: JSON.stringify({ key: newKey }),
-    });
-    if (res.ok) {
-      setKeys([...keys, newKey]);
-      setNewKey('');
-    } else {
-      const err = await res.json();
-      alert(`Failed to add key: ${err.error || res.statusText}`);
+    try {
+      const res = await fetch('/api/admin/keys', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAdminToken()}`
+        },
+        body: JSON.stringify({ key: newKey }),
+      });
+      if (res.ok) {
+        setKeys(prev => Array.from(new Set([...prev, newKey])));
+        setNewKey('');
+      } else {
+        const err = await res.json();
+        alert(`Failed to add key: ${err.error || res.statusText}`);
+      }
+    } catch (err) {
+      alert("Network error while adding key");
     }
   };
 
   const removeKey = async (key: string) => {
-    const res = await fetch('/api/admin/keys', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAdminToken()}`
-      },
-      body: JSON.stringify({ key }),
-    });
-    if (res.ok) {
-      setKeys(keys.filter(k => k !== key));
+    try {
+      const res = await fetch('/api/admin/keys', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAdminToken()}`
+        },
+        body: JSON.stringify({ key }),
+      });
+      if (res.ok) {
+        setKeys(prev => prev.filter(k => k !== key));
+      }
+    } catch (err) {
+      console.error("Failed to remove key:", err);
     }
   };
 
   const saveSettings = async () => {
-    const res = await fetch('/api/admin/settings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAdminToken()}`
-      },
-      body: JSON.stringify({ maxQueueSize }),
-    });
-    if (res.ok) {
-      alert('Settings saved');
-    } else {
-      const err = await res.json();
-      alert(`Failed to save settings: ${err.error || res.statusText}`);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getAdminToken()}`
+        },
+        body: JSON.stringify({ maxQueueSize }),
+      });
+      if (res.ok) {
+        alert('Settings saved');
+      } else {
+        const err = await res.json();
+        alert(`Failed to save settings: ${err.error || res.statusText}`);
+      }
+    } catch (err) {
+      alert("Network error while saving settings");
     }
   };
 

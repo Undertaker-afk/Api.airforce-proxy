@@ -6,7 +6,8 @@ components:
     package: "https://github.com/diploi/component-nextjs#main"
     env:
       include:
-        - "*"
+        - "APP_ENDPOINT"
+        - "NODE_ENV"
   - name: "API"
     identifier: "api"
     folder: "api"

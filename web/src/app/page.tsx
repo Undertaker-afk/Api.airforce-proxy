@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 
 interface Message {
+  id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
 }
@@ -31,10 +32,17 @@ export default function ChatPage() {
     }
     setSessionId(sid);
 
-    fetch(`/api/chat/history?sessionId=${sid}`).then(res => res.ok ? res.json() : []).then(setMessages);
-    fetch('/api/models').then(res => res.json()).then(data => {
-      if (data.data) setModels(data.data);
-    });
+    fetch(`/api/chat/history?sessionId=${encodeURIComponent(sid)}`)
+      .then(res => res.ok ? res.json() : [])
+      .then(data => setMessages(Array.isArray(data) ? data : []))
+      .catch(() => setMessages([]));
+
+    fetch('/api/models')
+      .then(res => res.ok ? res.json() : { data: [] })
+      .then(data => {
+        if (data.data) setModels(data.data);
+      })
+      .catch(() => setModels([]));
   }, []);
 
   useEffect(() => {
@@ -43,18 +51,22 @@ export default function ChatPage() {
 
   const saveHistory = useCallback(async (msgs: Message[]) => {
     if (sessionId && msgs.length > 0) {
-      await fetch('/api/chat/history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, messages: msgs }),
-      });
+      try {
+        await fetch('/api/chat/history', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, messages: msgs }),
+        });
+      } catch (err) {
+        console.error("Failed to save history:", err);
+      }
     }
   }, [sessionId]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
-    const userMessage: Message = { role: 'user', content: input };
+    const userMessage: Message = { id: uuidv4(), role: 'user', content: input };
     const newMessages: Message[] = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
@@ -67,7 +79,7 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: selectedModel,
-          messages: newMessages,
+          messages: newMessages.map(({ role, content }) => ({ role, content })),
           stream: true,
         }),
       });
@@ -83,8 +95,9 @@ export default function ChatPage() {
       const decoder = new TextDecoder();
       let assistantMessage = '';
       let partialLine = '';
+      const assistantMessageId = uuidv4();
 
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      setMessages(prev => [...prev, { id: assistantMessageId, role: 'assistant', content: '' }]);
 
       while (true) {
         const { done, value } = await reader.read();
@@ -105,16 +118,22 @@ export default function ChatPage() {
                 assistantMessage += data.choices[0].delta.content;
                 setMessages(prev => {
                   const updated = [...prev];
-                  updated[updated.length - 1].content = assistantMessage;
+                  const idx = updated.findIndex(m => m.id === assistantMessageId);
+                  if (idx !== -1) {
+                    updated[idx] = { ...updated[idx], content: assistantMessage };
+                  }
                   return updated;
                 });
               } else if (data.error) {
                 assistantMessage += `\nError: ${data.error}`;
                 setMessages(prev => {
-                   const updated = [...prev];
-                   updated[updated.length - 1].content = assistantMessage;
-                   return updated;
-                 });
+                  const updated = [...prev];
+                  const idx = updated.findIndex(m => m.id === assistantMessageId);
+                  if (idx !== -1) {
+                    updated[idx] = { ...updated[idx], content: assistantMessage };
+                  }
+                  return updated;
+                });
               }
             } catch (e) {
               console.error("Error parsing SSE chunk:", e, dataStr);
@@ -123,12 +142,13 @@ export default function ChatPage() {
         }
       }
 
-      const finalMessages: Message[] = [...newMessages, { role: 'assistant', content: assistantMessage }];
-      await saveHistory(finalMessages);
+      const finalAssistantMessage: Message = { id: assistantMessageId, role: 'assistant', content: assistantMessage };
+      await saveHistory([...newMessages, finalAssistantMessage]);
 
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unknown error';
-      const errorMessages: Message[] = [...newMessages, { role: 'assistant', content: `Error: ${message}` }];
+      const errorMessage: Message = { id: uuidv4(), role: 'assistant', content: `Error: ${message}` };
+      const errorMessages: Message[] = [...newMessages, errorMessage];
       setMessages(errorMessages);
       await saveHistory(errorMessages);
     } finally {
@@ -158,8 +178,8 @@ export default function ChatPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+        {messages.map((m) => (
+          <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] p-3 rounded-lg ${m.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border'}`}>
               <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
             </div>

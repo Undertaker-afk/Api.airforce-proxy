@@ -14,20 +14,27 @@ interface AnalyticsResponse {
   metrics: Record<string, KeyMetric>;
 }
 
+interface AdminAnalyticsConfig {
+  appEndpoint: string;
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsResponse | null>(null);
-  const [config, setConfig] = useState<any>(null);
+  const [config, setConfig] = useState<AdminAnalyticsConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { getAdminToken } = useAuth();
 
   useEffect(() => {
+    const token = getAdminToken();
+    if (!token) return;
+
     const fetchData = async () => {
       try {
         const res = await fetch('/api/admin/analytics', {
-          headers: { 'Authorization': `Bearer ${getAdminToken()}` }
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error(`Analytics fetch failed: ${res.status}`);
-        const json = await res.json();
+        const json: AnalyticsResponse = await res.json();
         setData(json);
         setError(null);
       } catch (err: any) {
@@ -39,16 +46,16 @@ export default function AnalyticsPage() {
     const interval = setInterval(fetchData, 5000);
 
     fetch('/api/admin/config', {
-      headers: { 'Authorization': `Bearer ${getAdminToken()}` }
+      headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(res => res.ok ? res.json() : null)
+      .then(res => res.ok ? res.json() as Promise<AdminAnalyticsConfig> : null)
       .then(setConfig);
 
     return () => clearInterval(interval);
   }, [getAdminToken]);
 
   if (error) return <div className="text-red-500 p-4">Error: {error}</div>;
-  if (!data) return <div>Loading...</div>;
+  if (!data) return <div className="p-10">Loading...</div>;
 
   return (
     <div>

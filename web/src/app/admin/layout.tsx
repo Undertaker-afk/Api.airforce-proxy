@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAuth } from '@/lib/hooks/useAuth';
 import Link from 'next/link';
 
@@ -14,7 +14,22 @@ export default function AdminLayout({
   const [loginError, setLoginError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  if (isAuthenticated === null) return <div>Loading...</div>;
+  const handleLogin = useCallback(async () => {
+    setIsLoggingIn(true);
+    setLoginError('');
+    try {
+      const success = await login(password);
+      if (!success) {
+        setLoginError('Invalid password');
+      }
+    } catch (err) {
+      setLoginError('An unexpected error occurred');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  }, [login, password]);
+
+  if (isAuthenticated === null) return <div className="p-10">Loading...</div>;
 
   if (!isAuthenticated) {
     return (
@@ -40,16 +55,6 @@ export default function AdminLayout({
         </div>
       </div>
     );
-  }
-
-  async function handleLogin() {
-    setIsLoggingIn(true);
-    setLoginError('');
-    const success = await login(password);
-    if (!success) {
-      setLoginError('Invalid password');
-    }
-    setIsLoggingIn(false);
   }
 
   return (

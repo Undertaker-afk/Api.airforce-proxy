@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Airforce API Proxy
 
-## Getting Started
+An OpenAI-compatible API proxy for `api.airforce`, designed to bypass rate limits through key rotation and request queuing.
 
-First, run the development server:
+## Architecture
+
+This project is split into two main components:
+
+- **Web (Next.js)**: The frontend user interface for chat and administration.
+- **API (Bun + Hono)**: The backend proxy that handles request queuing, key rotation, and communication with the upstream Airforce API.
+
+## Features
+
+- **Queue System**: Redis-backed queue with configurable maximum size and 15-minute timeouts.
+- **Key Rotation**: Cycles through a pool of API keys to respect the 1 RPM limit of free accounts.
+- **Admin Dashboard**: Secure management of API keys and real-time analytics.
+- **Streaming Support**: Full support for Server-Sent Events (SSE) for a responsive chat experience.
+
+## Setup
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `REDIS_URL` | Connection string for the Redis instance. |
+| `ADMIN_PASSWORD` | Password for accessing the admin dashboard and API. |
+| `APP_ENDPOINT` | The public URL of the application. |
+
+### Development
+
+Run the following commands in the root directory:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Start the API component
+cd api
+bun run index.ts
+
+# Start the Web component
+cd web
+bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deployment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+This project is optimized for deployment on [Diploi](https://diploi.com).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Connect your repository to Diploi.
+2. Configure the required environment variables in the project settings.
+3. Deploy!
